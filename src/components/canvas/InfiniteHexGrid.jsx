@@ -12,7 +12,13 @@ export const InfiniteHexGrid = () => {
   const view = usePortfolioStore((state) => state.view)
   const activePageId = usePortfolioStore((state) => state.activePageId)
 
-  const r = 1 
+  const r = usePortfolioStore((state) => state.hexSize)
+  const gridSpacing = usePortfolioStore((state) => state.gridSpacing)
+  const waveSpeed = usePortfolioStore((state) => state.waveSpeed)
+  const waveHeight = usePortfolioStore((state) => state.waveHeight)
+  const wallHeight = usePortfolioStore((state) => state.wallHeight)
+  const themeGrid = usePortfolioStore((state) => state.theme.grid)
+
   const hexWidth = Math.sqrt(3) * r 
   const hexHeight = 2 * r
   const thickness = 4
@@ -29,7 +35,10 @@ export const InfiniteHexGrid = () => {
     uTime: { value: 0 },
     uMouse: { value: new THREE.Vector2(9999, 9999) },
     uTransition: { value: 0 },
-    uActivePos: { value: new THREE.Vector2(9999, 9999) }
+    uActivePos: { value: new THREE.Vector2(9999, 9999) },
+    uWaveSpeed: { value: waveSpeed },
+    uWaveHeight: { value: waveHeight },
+    uWallHeight: { value: wallHeight }
   }), [])
 
   // Sync Zustand state changes directly to the GPU GSAP animation engine
@@ -49,11 +58,13 @@ export const InfiniteHexGrid = () => {
         customUniforms.uActivePos.value.set(worldX, worldZ)
       }
     }
-  }, [view, activePageId, pages, hexWidth, customUniforms])
+  }, [view, activePageId, pages, hexWidth, r, customUniforms])
 
   const dummy = useMemo(() => new THREE.Object3D(), [])
   const colorObj = useMemo(() => new THREE.Color(), [])
-  const defaultColor = useMemo(() => new THREE.Color('#1f2937'), [])
+  
+  // Explicitly tie the default tile color to the dynamic Theme Settings panel
+  const defaultColor = useMemo(() => new THREE.Color(themeGrid), [themeGrid])
 
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
   const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), [])
@@ -91,6 +102,9 @@ export const InfiniteHexGrid = () => {
 
     // Supply physics uniforms
     customUniforms.uTime.value = state.clock.getElapsedTime()
+    customUniforms.uWaveSpeed.value = waveSpeed
+    customUniforms.uWaveHeight.value = waveHeight
+    customUniforms.uWallHeight.value = wallHeight
     
     // Mathematically intersect pointer to pass directly to Shader
     raycaster.setFromCamera(state.pointer, state.camera)
@@ -141,12 +155,15 @@ export const InfiniteHexGrid = () => {
     }
   })
 
-  // GLSL Shader injection payload
+  // GLSL Shader injection payload securely reading from Zustand Unifroms
   const onBeforeCompile = (shader) => {
     shader.uniforms.uTime = customUniforms.uTime
     shader.uniforms.uMouse = customUniforms.uMouse
     shader.uniforms.uTransition = customUniforms.uTransition
     shader.uniforms.uActivePos = customUniforms.uActivePos
+    shader.uniforms.uWaveSpeed = customUniforms.uWaveSpeed
+    shader.uniforms.uWaveHeight = customUniforms.uWaveHeight
+    shader.uniforms.uWallHeight = customUniforms.uWallHeight
 
     shader.vertexShader = shader.vertexShader.replace(
       '#include <common>',
@@ -156,6 +173,10 @@ export const InfiniteHexGrid = () => {
       uniform vec2 uMouse;
       uniform float uTransition;
       uniform vec2 uActivePos;
+      
+      uniform float uWaveSpeed;
+      uniform float uWaveHeight;
+      uniform float uWallHeight;
       `
     )
 
@@ -173,7 +194,7 @@ export const InfiniteHexGrid = () => {
       float mouseDip = smoothstep(10.0, 0.0, distMouse) * 3.0;
       
       // 2. Wavy Ocean Math
-      float wave = sin(centerXZ.x * 0.3 + uTime * 1.5) * cos(centerXZ.y * 0.3 + uTime * 1.1) * 0.5;
+      float wave = sin(centerXZ.x * 0.3 + uTime * uWaveSpeed) * cos(centerXZ.y * 0.3 + uTime * (uWaveSpeed * 0.73)) * uWaveHeight;
       
       // 3. Zoom Transition Block logic
       float distActive = distance(centerXZ, uActivePos);
@@ -182,8 +203,8 @@ export const InfiniteHexGrid = () => {
       float isNotActive = step(0.1, distActive); 
       
       // If we are active (isNotActive == 0), the offset stays firmly 0. 
-      // All others rise dramatically up to 50 units high!
-      float transitionOffset = isNotActive * (50.0 * uTransition);
+      // All others rise dramatically up to 'uWallHeight' high!
+      float transitionOffset = isNotActive * (uWallHeight * uTransition);
       
       // Apply transforms locally inside the shader before final model mapping
       transformed.y += wave - mouseDip + transitionOffset;
@@ -199,7 +220,7 @@ export const InfiniteHexGrid = () => {
       onPointerMove={handlePointerMove}
       onPointerOut={handlePointerOut}
     >
-      <cylinderGeometry args={[r * 0.95, r * 0.95, thickness, 6]} />
+      <cylinderGeometry args={[r * gridSpacing, r * gridSpacing, thickness, 6]} />
       <meshStandardMaterial 
         onBeforeCompile={onBeforeCompile}
         customProgramCacheKey={() => "customHexGlslShader"}
@@ -210,4 +231,3 @@ export const InfiniteHexGrid = () => {
     </instancedMesh>
   )
 }
-

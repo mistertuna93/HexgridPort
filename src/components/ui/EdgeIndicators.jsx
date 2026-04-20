@@ -8,7 +8,7 @@ export const EdgeIndicators = () => {
   const pages = usePortfolioStore((state) => state.pages)
   const activePageId = usePortfolioStore((state) => state.activePageId)
   
-  const r = 1
+  const r = usePortfolioStore((state) => state.hexSize)
   const hexWidth = Math.sqrt(3) * r
 
   useFrame(() => {

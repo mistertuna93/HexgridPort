@@ -9,7 +9,8 @@ export const CameraController = () => {
   const view = usePortfolioStore((state) => state.view)
   const activePageId = usePortfolioStore((state) => state.activePageId)
 
-  const r = 1
+  // Fetch responsive coordinates to stretch bounds appropriately
+  const r = usePortfolioStore((state) => state.hexSize)
   const hexWidth = Math.sqrt(3) * r
 
   // Calculate the Bounding Box of all mapped pages so user can't get lost
