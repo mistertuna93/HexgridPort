@@ -8,6 +8,8 @@ export const CameraController = () => {
   const pages = usePortfolioStore((state) => state.pages)
   const view = usePortfolioStore((state) => state.view)
   const activePageId = usePortfolioStore((state) => state.activePageId)
+  const hoverPoint = usePortfolioStore((state) => state.hoverPoint)
+  const wallHeight = usePortfolioStore((state) => state.wallHeight) || 30 // Extract configuration limit
 
   // Fetch responsive coordinates to stretch bounds appropriately
   const r = usePortfolioStore((state) => state.hexSize)
@@ -28,12 +30,61 @@ export const CameraController = () => {
   
   const padding = 15 // Margin around the bounding box
 
-  useFrame(() => {
+  useFrame((state, delta) => {
     if (!controls) return
     
-    // Clamp panning targets so camera never wanders out of bounds
+    // Joystick Camera Drive - dynamically continuous sliding logic mapped strictly to cursor hover presence natively
+    if (view === 'GRID') {
+      const isCursorInside = usePortfolioStore.getState().isCursorInside
+      
+      if (hoverPoint) {
+        // Tag Joystick Mapping strictly parsing native identical
+        const dx = hoverPoint.x - camera.position.x
+        const dz = hoverPoint.z - camera.position.z
+        const dist = Math.sqrt(dx*dx + dz*dz)
+        
+        const speed = 25.0 * delta // Constant linear drive speed mapping precisely to keyboard arrow rates flawlessly
+        if (dist > 0.5) {
+           camera.position.x += (dx / dist) * speed
+           camera.position.z += (dz / dist) * speed
+           controls.target.x += (dx / dist) * speed
+           controls.target.z += (dz / dist) * speed
+           controls.update()
+        }
+      } else if (isCursorInside) {
+        // Core Viewport Edge panning strictly smoothly triggering RTS tracker identically
+        const edgeThreshold = 0.92 // Outermost 4% cleanly cleanly
+        
+        let panX = 0
+        let panZ = 0
+        
+        if (state.pointer.x > edgeThreshold) panX = 1
+        if (state.pointer.x < -edgeThreshold) panX = -1
+        
+        // Y mapping: Top of screen natively pushes tracking backwards (-Z into distance) identically natively
+        if (state.pointer.y > edgeThreshold) panZ = -1
+        if (state.pointer.y < -edgeThreshold) panZ = 1
+        
+        if (panX !== 0 || panZ !== 0) {
+           const panSpeed = 25.0 * delta
+           const len = Math.sqrt(panX*panX + panZ*panZ)
+           
+           camera.position.x += (panX / len) * panSpeed
+           camera.position.z += (panZ / len) * panSpeed
+           controls.target.x += (panX / len) * panSpeed
+           controls.target.z += (panZ / len) * panSpeed
+           controls.update()
+        }
+      }
+    }
+    
+    // Clamp panning targets so camera never wanders out of bounds organically mathematically
     controls.target.x = Math.max(bounds.minX - padding, Math.min(bounds.maxX + padding, controls.target.x))
     controls.target.z = Math.max(bounds.minZ - padding, Math.min(bounds.maxZ + padding, controls.target.z))
+    
+    // Sustain absolute spatial awareness in the store for flight duration calculations
+    usePortfolioStore.setState({ lastCameraPos: camera.position.clone() })
+    
     controls.update()
   })
 
@@ -41,44 +92,59 @@ export const CameraController = () => {
   useEffect(() => {
     if (!controls) return
 
-    if (view === 'ZOOMED' && activePageId) {
+    if ((view === 'FOCUSING' || view === 'ZOOMED') && activePageId) {
       const page = pages.find((p) => p.id === activePageId)
       if (!page) return
 
+      const r = usePortfolioStore.getState().hexSize || 1.0
       const modRow = ((page.vCoord.y % 2) + 2) % 2
       const worldX = (page.vCoord.x + modRow * 0.5) * hexWidth
       const worldZ = page.vCoord.y * 1.5 * r
-      
-      controls.enabled = false
-      
-      // Animate Camera Height
-      gsap.to(camera.position, {
-        x: worldX,
-        y: 6, // Low altitude Zoom
-        z: worldZ + 0.1, // Offset prevents top-down gimbal lock
-        duration: 1.2,
-        ease: 'power3.inOut'
-      })
 
-      // Animate Control Target (Panning instantly to coordinate)
-      gsap.to(controls.target, {
-        x: worldX,
-        y: 0,
-        z: worldZ,
-        duration: 1.2,
-        ease: 'power3.inOut',
-        onUpdate: () => controls.update(),
-        onComplete: () => { controls.enabled = true }
-      })
-    } else if (view === 'GRID') {
+      // Target perfectly centered heavily zoomed all the way cleanly independently mapping native layout beautifully 
+      const tCamX = worldX
+      const tCamY = 12 // Even tighter to ensure the expanded face is massive
+      const tCamZ = worldZ + 10 // Adjusted for the lower altitude
+      const tLookX = worldX
+      const tLookY = 0
+      const tLookZ = worldZ
+
+      // Capture duration from store (was pre-calculated in transitionToPage)
+      const flightDuration = usePortfolioStore.getState().flightDuration
+
       controls.enabled = false
+
+      // Ensure the control's target smoothly interpolates tightly natively
+      if (controls) {
+        gsap.to(controls.target, {
+          x: tLookX,
+          y: tLookY,
+          z: tLookZ,
+          duration: flightDuration,
+          ease: 'power2.inOut'
+        })
+      }
+
       gsap.to(camera.position, {
-        y: 20, // Grid altitude
-        duration: 1.2,
-        ease: 'power3.inOut',
-        onUpdate: () => controls.update(),
-        onComplete: () => { controls.enabled = true }
+        x: tCamX,
+        y: tCamY,
+        z: tCamZ,
+        duration: flightDuration,
+        ease: 'power2.inOut',
+        onUpdate: () => controls?.update(),
+        onComplete: () => {
+           // Allow camera cleanly executing seamlessly firing isolated route completely gracefully native
+           controls.enabled = true
+           if (usePortfolioStore.getState().view === 'FOCUSING') {
+              // Once flight is complete, trigger the structural growth phase natively
+              usePortfolioStore.setState({ view: 'GROWING' })
+           }
+        }
       })
+    } else if (view === 'GRID' && !activePageId) {
+      // Retain tracking strictly locked natively seamlessly isolating the exact zoomed limit inherently mapped cleanly explicitly smoothly statically safely!
+      controls.enabled = true
+      usePortfolioStore.setState({ isTransitioning: false })
     }
   }, [view, activePageId, pages, camera, controls, hexWidth])
 

@@ -1,47 +1,28 @@
 import React, { useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { MapControls, KeyboardControls, useKeyboardControls } from '@react-three/drei'
+import { MapControls } from '@react-three/drei'
 import { InfiniteHexGrid } from './components/canvas/InfiniteHexGrid'
 import { CameraController } from './components/canvas/CameraController'
-import { EdgeIndicators, EdgeIndicatorsDOM } from './components/ui/EdgeIndicators'
+
 import { PageContainer } from './components/canvas/PageContainer'
-import { SettingsPanel } from './components/ui/SettingsPanel'
+import { SettingsDashboard } from './components/ui/SettingsDashboard'
+import { ActivePageOverlay } from './components/ui/ActivePageOverlay'
 import { usePortfolioStore } from './store/usePortfolioStore'
 
-// Binds configured keys directly to our Zustand routing actions
-const KeyboardRouter = () => {
-  const [subscribe] = useKeyboardControls()
-  const nextPage = usePortfolioStore((state) => state.nextPage)
-  const prevPage = usePortfolioStore((state) => state.prevPage)
-
-  useEffect(() => {
-    const unsubNext = subscribe((state) => state.nextPage, (pressed) => pressed && nextPage())
-    const unsubPrev = subscribe((state) => state.prevPage, (pressed) => pressed && prevPage())
-    
-    return () => {
-      unsubNext()
-      unsubPrev()
-    }
-  }, [subscribe, nextPage, prevPage])
-
-  return null
-}
-
-const keyboardBindings = [
-  { name: 'nextPage', keys: ['ArrowRight', 'ArrowDown', 'KeyD', 'KeyS'] },
-  { name: 'prevPage', keys: ['ArrowLeft', 'ArrowUp', 'KeyA', 'KeyW'] }
-]
+// Implicit pagination router removed to allow MapControls exclusive uninhibited arrow access natively
 
 function App() {
   const pages = usePortfolioStore((state) => state.pages)
   const themeBg = usePortfolioStore((state) => state.theme.background) // Reactive background color
 
   return (
-    <KeyboardControls map={keyboardBindings}>
-      <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: themeBg, transition: 'background 0.5s ease' }}>
-        
-        {/* The headless router sits above the WebGL context */}
-        <KeyboardRouter />
+    <>
+      <div 
+        className="w-screen h-screen overflow-hidden flex flex-col transition-colors duration-500 ease-in-out" 
+        style={{ backgroundColor: themeBg }}
+        onPointerEnter={() => usePortfolioStore.setState({ isCursorInside: true })}
+        onPointerLeave={() => usePortfolioStore.setState({ isCursorInside: false })}
+      >
         
         {/* Positioned the camera perfectly vertical looking down */}
         <Canvas camera={{ position: [0, 20, 0], fov: 45 }}>
@@ -56,7 +37,6 @@ function App() {
           
           <InfiniteHexGrid />
           <CameraController />
-          <EdgeIndicators />
           
           {/* Stamps the localized HTML nodes onto the spatial layout */}
           {pages.map((p) => (
@@ -72,15 +52,15 @@ function App() {
             maxDistance={40} 
             maxPolarAngle={0} 
             minPolarAngle={0} 
+            listenToKeyEvents={window}
           />
         </Canvas>
       </div>
       
       {/* 2D Overlay UI layers */}
-      <EdgeIndicatorsDOM />
-      <SettingsPanel />
-      
-    </KeyboardControls>
+      <ActivePageOverlay />
+      <SettingsDashboard />
+    </>
   )
 }
 
