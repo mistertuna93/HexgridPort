@@ -1,0 +1,6 @@
+# Project Context: Hex-Spatial-Portfolio
+- **Framework:** React + Three.js (R3F)
+- **Primary Goal:** 3D Hexagonal Grid Navigation.
+- **Constraints:** - Use `InstancedMesh` for performance.
+  - Use `GSAP` for camera transitions.
+  - Keep 3D components in `/src/components/canvas`.
