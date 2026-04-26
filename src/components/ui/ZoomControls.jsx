@@ -23,7 +23,10 @@ export const ZoomControls = () => {
     }
 
     return (
-        <div className="fixed left-10 bottom-10 z-50 group flex items-center h-14 bg-black/40 backdrop-blur-md border border-white/10 rounded-full shadow-2xl transition-all duration-500 ease-out w-16 hover:w-[320px] overflow-hidden cursor-pointer hover:cursor-default">
+        <div 
+            onClick={(e) => handleSafeZoom(e, MID_Y)}
+            className="fixed left-10 bottom-10 z-50 group flex items-center h-14 bg-black/40 backdrop-blur-md border border-white/10 rounded-full shadow-2xl transition-all duration-500 ease-out w-16 hover:w-[320px] overflow-hidden cursor-pointer hover:cursor-default"
+        >
 
             {/* Default State: Magnifying Glass Icon + Current Zoom Level */}
             <div className="absolute left-0 w-16 h-14 flex flex-col items-center justify-center opacity-100 group-hover:opacity-0 transition-opacity duration-300 pointer-events-none">

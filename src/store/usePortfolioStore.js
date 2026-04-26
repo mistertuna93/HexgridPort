@@ -169,6 +169,8 @@ export const usePortfolioStore = create((set, get) => ({
   },
 
   triggerZoom: (id) => get().transitionToPage(id),
+  triggerManualZoom: (yLevel) => set({ targetZoom: yLevel }),
+  triggerManualPan: (x, z) => set({ targetPan: { x, z } }),
   openHome: () => get().transitionToPage('home'), // Action for help button
 
   resetView: async () => {

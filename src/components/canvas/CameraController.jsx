@@ -81,7 +81,10 @@ export const CameraController = () => {
     if (view === 'FOCUSING' && activePageId) {
       const currentPages = usePortfolioStore.getState().pages
       const page = currentPages.find((p) => p.id === activePageId)
-      if (!page) return
+      if (!page) {
+        usePortfolioStore.setState({ view: 'ZOOMED', isTransitioning: false })
+        return
+      }
 
       const r = usePortfolioStore.getState().hexSize || 1.0
       const hexWidth = Math.sqrt(3) * r

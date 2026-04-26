@@ -3,6 +3,8 @@ import { usePortfolioStore } from '../../store/usePortfolioStore'
 import { BioCard } from '../content/BioCard'
 import { ProjectsVault } from '../content/ProjectsVault'
 import { HomePage } from '../content/HomePage'
+import { ContactTerminal } from '../content/ContactTerminal'
+
 
 export const ActivePageOverlay = () => {
   const view = usePortfolioStore(state => state.view)
@@ -13,7 +15,7 @@ export const ActivePageOverlay = () => {
   const [mountedPageId, setMountedPageId] = useState(null)
 
   // Control visibility based on store state
-  const isActive = (view === 'ZOOMED' || view === 'GROWING' || activePageId === 'home') && activePageId !== null
+  const isActive = (view === 'ZOOMED' || view === 'GROWING') && activePageId !== null
 
   useEffect(() => {
     if (activePageId) {
@@ -26,6 +28,7 @@ export const ActivePageOverlay = () => {
       case 'home': return <HomePage />
       case 'bio': return <BioCard />
       case 'projects': return <ProjectsVault />
+      case 'contact': return <ContactTerminal />
       default: return null
     }
   }
@@ -37,7 +40,7 @@ export const ActivePageOverlay = () => {
       style={{ fontFamily: 'system-ui, sans-serif' }}
     >
       {/* Background Blur Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-2xl pointer-events-none" />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm pointer-events-none" />
 
       {/* MAIN VIEWPORT CONTAINER 
         Constrained to 90vw and 85vh to ensure the 'Close' button and 

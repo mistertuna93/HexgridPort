@@ -7,6 +7,7 @@ export const SettingsDashboard = () => {
   const [presetName, setPresetName] = useState('')
   
   const state = usePortfolioStore()
+  const openHome = usePortfolioStore((s) => s.openHome)
   
   if (!isOpen) {
     return (
@@ -16,7 +17,7 @@ export const SettingsDashboard = () => {
         onPointerLeave={() => usePortfolioStore.setState({ isPointerOverUI: false })}
       >
         <button 
-          onClick={(e) => { e.stopPropagation(); usePortfolioStore.setState({ isHomeOpen: true }) }}
+          onClick={(e) => { e.stopPropagation(); openHome() }}
           className="bg-white/10 hover:bg-white/20 text-white border border-white/20 w-12 h-12 rounded-full cursor-pointer backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-110 flex items-center justify-center"
           title="Open Welcome View"
         >
