@@ -7,9 +7,7 @@ import gsap from 'gsap'
 
 export const PageContainer = ({ page }) => {
   const groupRef = useRef(null)
-  const scaleRef = useRef(null)
   const idleRef = useRef(null)
-  const activeRef = useRef(null)
   const labelWrapperRef = useRef(null)
   const hoverActiveRef = useRef(false)
 
@@ -24,9 +22,6 @@ export const PageContainer = ({ page }) => {
   const waveFrequency = usePortfolioStore((state) => state.waveFrequency)
   const waveMagnitude = usePortfolioStore((state) => state.waveMagnitude)
   const waveDirection = usePortfolioStore((state) => state.waveDirection) || new THREE.Vector2(1,1)
-  const themeGrid = usePortfolioStore((state) => state.theme.grid)
-  const wallHeight = usePortfolioStore((state) => state.wallHeight) || 30 // Extract for exact height syncing
-
   const hexWidth = Math.sqrt(3) * r
   
   const modRow = ((page.vCoord.y % 2) + 2) % 2
@@ -46,12 +41,11 @@ export const PageContainer = ({ page }) => {
 
   const isActive = activePageId === page.id
   
-  // Custom GSAP integration ensuring DOM Component cleanly follows GPU Fragment Elevation matrix independently perfectly!
-  const transitionRef = useRef({ value: 0 })
+
 
   useFrame((state) => {
     if (!groupRef.current) return
-    const elapsedTime = state.clock.getElapsedTime()
+    const elapsedTime = state.clock.elapsedTime
     
     // Physical Hexagon Height Matrix Math
     const proj = centerXZ.dot(waveDirection.clone().normalize())
@@ -143,18 +137,26 @@ export const PageContainer = ({ page }) => {
       const mousePy = (-state.pointer.y * 0.5 + 0.5) * state.size.height
       const hoverDist = Math.sqrt(Math.pow(labelAbsX - mousePx, 2) + Math.pow(labelAbsY - mousePy, 2))
       
-      // Inject massive hysteresis! If already hovering, expand the retention envelope to 250px so the panning slider doesn't violently mathematically natively escape the cursor!
-      const retentionRadius = hoverActiveRef.current ? 250 : 50
-      const isCurrentlyHovered = hoverDist < retentionRadius && view === 'GRID' && !isActive
+      // Inject massive hysteresis! If already hovering, expand the retention envelope to 300px so the panning slider doesn't violently mathematically natively escape the cursor!
+      const isPointerOverUI = usePortfolioStore.getState().isPointerOverUI
+      const retentionRadius = hoverActiveRef.current ? 300 : 40
+      const isCurrentlyHovered = hoverDist < retentionRadius && view === 'GRID' && !isActive && !isPointerOverUI
       
       if (isCurrentlyHovered && !hoverActiveRef.current) {
-        hoverActiveRef.current = true
-        document.body.style.cursor = 'pointer'
-        setHoverPoint({ x: worldX, z: worldZ })
+        // Ensure no other tag is hovered (exclusive hover)
+        if (!window._globalHoveredPage) {
+          window._globalHoveredPage = page.id
+          hoverActiveRef.current = true
+          document.body.style.cursor = 'pointer'
+          setHoverPoint({ x: worldX, z: worldZ, id: page.id })
+        }
       } else if (!isCurrentlyHovered && hoverActiveRef.current) {
         hoverActiveRef.current = false
+        if (window._globalHoveredPage === page.id) {
+          window._globalHoveredPage = null
+        }
         // Only safely reset the global cursor mathematically evaluating conditionally
-        if (document.body.style.cursor === 'pointer') {
+        if (document.body.style.cursor === 'pointer' && !window._globalHoveredPage) {
           document.body.style.cursor = 'auto'
         }
         setHoverPoint(null)
@@ -162,24 +164,12 @@ export const PageContainer = ({ page }) => {
     }
   })
 
-  useEffect(() => {
-    if (view === 'ZOOMED' && isActive) {
-      gsap.to(transitionRef.current, { value: 1, duration: 1.2, ease: 'power3.inOut' })
-      gsap.to(scaleRef.current.scale, { x: 1, y: 1, z: 1, duration: 1.2, ease: 'power3.inOut' })
-      gsap.to(activeRef.current, { opacity: 1, pointerEvents: 'auto', duration: 0.6, delay: 0.6 })
-      gsap.to(idleRef.current, { opacity: 0, duration: 0.3 })
-    } else {
-      gsap.to(transitionRef.current, { value: 0, duration: 1.2, ease: 'power3.inOut' })
-      gsap.to(scaleRef.current.scale, { x: 0.4, y: 0.4, z: 0.4, duration: 1.2, ease: 'power3.inOut' })
-      gsap.to(activeRef.current, { opacity: 0, pointerEvents: 'none', duration: 0.4 })
-      gsap.to(idleRef.current, { opacity: 1, duration: 0.6, delay: 0.8 })
-    }
-  }, [view, isActive])
-
-  // Synthetic DOM Click Intercept mapping mathematically flawlessly referencing native spatial ranges perfectly bypassing DOM pointer bugs identical natively
+  // Restore Synthetic DOM Click Intercept securely
   useEffect(() => {
     const handleClick = () => {
-      if (hoverActiveRef.current && view === 'GRID') {
+      if (hoverActiveRef.current && view === 'GRID' && window._globalHoveredPage === page.id) {
+        // Prevent multiple simultaneous clicks
+        window._globalHoveredPage = null
         triggerZoom(page.id)
       }
     }
@@ -187,23 +177,18 @@ export const PageContainer = ({ page }) => {
     return () => window.removeEventListener('click', handleClick)
   }, [page.id, view, triggerZoom])
 
-  // Dynamically compute perceptual string contrast flawlessly ensuring no tag perfectly camouflages against its hex map securely
-  const getLuminance = (hexcolor) => {
-    let hex = hexcolor.replace("#", "")
-    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('')
-    const r = parseInt(hex.substr(0, 2), 16)
-    const g = parseInt(hex.substr(2, 2), 16)
-    const b = parseInt(hex.substr(4, 2), 16)
-    return ((r * 299) + (g * 587) + (b * 114)) / 1000
-  }
+  useEffect(() => {
+    if (view === 'ZOOMED' && isActive) {
+      if (idleRef.current) gsap.to(idleRef.current, { opacity: 0, duration: 0.3 })
+    } else {
+      if (idleRef.current) gsap.to(idleRef.current, { opacity: 1, duration: 0.6, delay: 0.8 })
+    }
+  }, [view, isActive])
 
-  const gridLumina = getLuminance(themeGrid)
-  const themeLumina = getLuminance(page.theme)
+  // Native click intercept removed to allow InfiniteHexGrid to handle pointer events strictly
 
-  // If the absolute YIQ separation is too tight visually, the HUD evaluates a high contrast monochrome fallback
-  const indicatorColor = Math.abs(gridLumina - themeLumina) < 40 
-    ? (gridLumina >= 128 ? '#000000' : '#ffffff') 
-    : page.theme
+
+  const indicatorColor = page.theme || '#ffffff'
 
   return (
     <group ref={groupRef} position={[worldX, 2, worldZ]}>
@@ -243,8 +228,8 @@ export const PageContainer = ({ page }) => {
         </div>
       </Html>
 
-      {/* 3D Component Wrapper physically projected natively onto grid */}
-      <group ref={scaleRef} scale={isActive ? 1.0 : 0.4}>
+      {/* Ghost wrapper */}
+      <group scale={isActive ? 1.0 : 0.4}>
         <group position={[0, -0.45, 0]}> {/* Anchor visually underneath the hex matrix geometry */}
         </group>
       </group>

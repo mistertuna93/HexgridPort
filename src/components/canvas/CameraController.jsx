@@ -37,21 +37,7 @@ export const CameraController = () => {
     if (view === 'GRID') {
       const isCursorInside = usePortfolioStore.getState().isCursorInside
       
-      if (hoverPoint) {
-        // Tag Joystick Mapping strictly parsing native identical
-        const dx = hoverPoint.x - camera.position.x
-        const dz = hoverPoint.z - camera.position.z
-        const dist = Math.sqrt(dx*dx + dz*dz)
-        
-        const speed = 25.0 * delta // Constant linear drive speed mapping precisely to keyboard arrow rates flawlessly
-        if (dist > 0.5) {
-           camera.position.x += (dx / dist) * speed
-           camera.position.z += (dz / dist) * speed
-           controls.target.x += (dx / dist) * speed
-           controls.target.z += (dz / dist) * speed
-           controls.update()
-        }
-      } else if (isCursorInside) {
+      if (isCursorInside) {
         // Core Viewport Edge panning strictly smoothly triggering RTS tracker identically
         const edgeThreshold = 0.92 // Outermost 4% cleanly cleanly
         
@@ -92,19 +78,21 @@ export const CameraController = () => {
   useEffect(() => {
     if (!controls) return
 
-    if ((view === 'FOCUSING' || view === 'ZOOMED') && activePageId) {
-      const page = pages.find((p) => p.id === activePageId)
+    if (view === 'FOCUSING' && activePageId) {
+      const currentPages = usePortfolioStore.getState().pages
+      const page = currentPages.find((p) => p.id === activePageId)
       if (!page) return
-
+      
       const r = usePortfolioStore.getState().hexSize || 1.0
+      const hexWidth = Math.sqrt(3) * r
       const modRow = ((page.vCoord.y % 2) + 2) % 2
       const worldX = (page.vCoord.x + modRow * 0.5) * hexWidth
       const worldZ = page.vCoord.y * 1.5 * r
 
       // Target perfectly centered heavily zoomed all the way cleanly independently mapping native layout beautifully 
       const tCamX = worldX
-      const tCamY = 12 // Even tighter to ensure the expanded face is massive
-      const tCamZ = worldZ + 10 // Adjusted for the lower altitude
+      const tCamY = 15 // Elevated slightly to prevent near-plane clipping when hex expands
+      const tCamZ = worldZ // Exactly centered to maintain MapControls strict top-down polarAngle
       const tLookX = worldX
       const tLookY = 0
       const tLookZ = worldZ
@@ -146,7 +134,7 @@ export const CameraController = () => {
       controls.enabled = true
       usePortfolioStore.setState({ isTransitioning: false })
     }
-  }, [view, activePageId, pages, camera, controls, hexWidth])
+  }, [view, activePageId, camera, controls, hexWidth])
 
   return null
 }

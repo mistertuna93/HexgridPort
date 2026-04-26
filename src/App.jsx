@@ -7,6 +7,7 @@ import { CameraController } from './components/canvas/CameraController'
 import { PageContainer } from './components/canvas/PageContainer'
 import { SettingsDashboard } from './components/ui/SettingsDashboard'
 import { ActivePageOverlay } from './components/ui/ActivePageOverlay'
+import { HomeOverlay } from './components/ui/HomeOverlay'
 import { usePortfolioStore } from './store/usePortfolioStore'
 
 // Implicit pagination router removed to allow MapControls exclusive uninhibited arrow access natively
@@ -47,6 +48,8 @@ function App() {
           <MapControls 
             makeDefault 
             enableDamping 
+            enableZoom={true}
+            zoomSpeed={1.5}
             enableRotate={false} 
             minDistance={5} 
             maxDistance={40} 
@@ -58,6 +61,7 @@ function App() {
       </div>
       
       {/* 2D Overlay UI layers */}
+      <HomeOverlay />
       <ActivePageOverlay />
       <SettingsDashboard />
     </>
