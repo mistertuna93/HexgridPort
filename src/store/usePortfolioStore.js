@@ -27,21 +27,14 @@ const generatePageColors = (theme, mode) => {
   const troughColor = new THREE.Color(theme.trough)
   const peakColor = new THREE.Color(theme.peak)
 
-  const troughHsl = {}
-  troughColor.getHSL(troughHsl)
-  const peakHsl = {}
-  peakColor.getHSL(peakHsl)
+  const troughHsl = {}; troughColor.getHSL(troughHsl)
+  const peakHsl = {}; peakColor.getHSL(peakHsl)
 
-  // Calculate the absolute safest Hue (Direct opposite of the theme)
   const avgThemeHue = (troughHsl.h + peakHsl.h) / 2.0
   const oppositeHue = (avgThemeHue + 0.5) % 1.0
 
-  const hslGrid = {}
-  new THREE.Color().lerpColors(troughColor, peakColor, 0.5).getHSL(hslGrid)
+  const hslGrid = {}; new THREE.Color().lerpColors(troughColor, peakColor, 0.5).getHSL(hslGrid)
   const gridLum = getW3CLuminance(troughColor.r, troughColor.g, troughColor.b)
-
-  const hslAccent = {}
-  accentColor.getHSL(hslAccent)
 
   return defaultPages.map((page, index) => {
     const color = new THREE.Color()
@@ -50,34 +43,27 @@ const generatePageColors = (theme, mode) => {
       color.copy(accentColor)
     } else if (mode === 'monochrome') {
       color.setHex(hslGrid.l < 0.5 ? 0xffffff : 0x000000)
-    } else { // prismatic
-      // Intelligently distribute hues strictly centered around the safe opposite hue
-      const shift = (index - Math.floor(defaultPages.length / 2)) * 0.11 // Tighten spread slightly to ensure all 5 colors fit safely on the opposite side of the wheel
+    } else {
+      const shift = (index - Math.floor(defaultPages.length / 2)) * 0.11
       color.setHSL((oppositeHue + shift + 1.0) % 1.0, 1.0, 0.6)
     }
 
-    // Strict isolation enforcement ONLY for uniform mode (Prismatic is already mathematically safe)
     if (mode === 'uniform') {
-      const finalHsl = {}
-      color.getHSL(finalHsl)
-
+      const finalHsl = {}; color.getHSL(finalHsl)
       const distTrough = Math.min(Math.abs(finalHsl.h - troughHsl.h), 1.0 - Math.abs(finalHsl.h - troughHsl.h))
       const distPeak = Math.min(Math.abs(finalHsl.h - peakHsl.h), 1.0 - Math.abs(finalHsl.h - peakHsl.h))
 
-      // If the user's chosen color is within 20% of EITHER the peak or trough hue, shove it to the opposite hue!
       if (distTrough < 0.2 || distPeak < 0.2) {
         finalHsl.h = oppositeHue
         color.setHSL(finalHsl.h, finalHsl.s, finalHsl.l)
       }
     }
 
-    // W3C Accessibility Contrast Enforcer (Lightness) applies to ALL colors
     const nodeLum = getW3CLuminance(color.r, color.g, color.b)
     const ratio = getContrastRatio(nodeLum, gridLum)
 
     if (ratio < 4.5) {
-      const finalHsl = {}
-      color.getHSL(finalHsl)
+      const finalHsl = {}; color.getHSL(finalHsl)
       finalHsl.l = hslGrid.l < 0.5 ? Math.max(0.7, finalHsl.l + 0.4) : Math.min(0.3, finalHsl.l - 0.4)
       color.setHSL(finalHsl.h, finalHsl.s, finalHsl.l)
     }
@@ -125,69 +111,44 @@ export const presets = {
   }
 }
 
-// Persisted Store Hydration
 const loadPersistedState = () => {
   try {
     const defaultPresetStr = localStorage.getItem('userDefaultPreset')
     const userPresetsStr = localStorage.getItem('userPresets')
-
-    let defaultPreset = null
-    let customPresets = {}
-
+    let defaultPreset = null; let customPresets = {}
     if (defaultPresetStr) defaultPreset = JSON.parse(defaultPresetStr)
     if (userPresetsStr) customPresets = JSON.parse(userPresetsStr)
-
     return { defaultPreset, customPresets }
   } catch (e) {
-    console.warn("Failed to load local presets", e)
     return { defaultPreset: null, customPresets: {} }
   }
 }
 
 const { defaultPreset, customPresets } = loadPersistedState()
-
-const getInitialLayout = (dPreset) => {
-  if (dPreset && dPreset.layout) {
-    return {
-      ...dPreset.layout,
-      waveDirection: new THREE.Vector2(dPreset.layout.waveDirection.x, dPreset.layout.waveDirection.y)
-    }
-  }
-  return presets.purps.layout
-}
-
-const initialLayout = getInitialLayout(defaultPreset)
+const initialLayout = defaultPreset?.layout ? { ...defaultPreset.layout, waveDirection: new THREE.Vector2(defaultPreset.layout.waveDirection.x, defaultPreset.layout.waveDirection.y) } : presets.purps.layout
 const initialTheme = defaultPreset ? defaultPreset.theme : presets.purps.theme
 
 export const usePortfolioStore = create((set, get) => ({
   pages: generatePageColors(initialTheme, initialLayout.nodeColorMode),
-  view: 'GRID',
-  activePageId: null,
+  view: 'ZOOMED', // Starts with overlay visible
+  activePageId: 'home', // Starts on home
   hoverPoint: null,
   isCursorInside: false,
   isPointerOverUI: false,
-  isHomeOpen: true,
-
   theme: initialTheme,
   ...initialLayout,
-
   userPresets: customPresets,
-
   isTransitioning: false,
   flightDuration: 1.2,
   lastCameraPos: new THREE.Vector3(0, 20, 0),
   targetZoom: null,
   targetPan: null,
-  triggerManualPan: (x, z) => set({ targetPan: { x, z } }),
-  triggerManualZoom: (yLevel) => set({ targetZoom: yLevel }),
 
   transitionToPage: async (id) => {
     const state = get()
     if (state.isTransitioning || (state.activePageId === id && state.view === 'ZOOMED')) return
-
     set({ isTransitioning: true })
 
-    // Calculate the physical flight duration natively from the tracked camera position
     const fromPos = state.lastCameraPos
     const page = state.pages.find(p => p.id === id)
     if (page && fromPos) {
@@ -196,42 +157,29 @@ export const usePortfolioStore = create((set, get) => ({
       const modRow = ((page.vCoord.y % 2) + 2) % 2
       const targetX = (page.vCoord.x + modRow * 0.5) * hexWidth
       const targetZ = page.vCoord.y * 1.5 * r
-
-      const dx = targetX - fromPos.x
-      const dz = (targetZ + 15) - fromPos.z
-      const dy = 22 - fromPos.y
-      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+      const dist = Math.sqrt(Math.pow(targetX - fromPos.x, 2) + Math.pow(22 - fromPos.y, 2) + Math.pow((targetZ + 15) - fromPos.z, 2))
       set({ flightDuration: Math.max(1.2, dist / 25.0) })
     }
 
-    // Phase 1 - Fade UI and wait if we are in a zoomed or growing state
     if (state.view === 'ZOOMED' || state.view === 'GROWING' || state.view === 'FOCUSING') {
-      set({ view: 'FADING_UI' }) // Pulls UI away gracefully
+      set({ view: 'FADING_UI' })
       await new Promise(r => setTimeout(r, 600))
     }
-
-    // Phase 2 - Camera safely physically glides into tracking position
     set({ view: 'FOCUSING', activePageId: id })
   },
 
   triggerZoom: (id) => get().transitionToPage(id),
+  openHome: () => get().transitionToPage('home'), // Action for help button
 
   resetView: async () => {
     const state = get()
     if (state.isTransitioning || state.view === 'GRID') return
-
-    set({ isTransitioning: true })
-
-    set({ view: 'FADING_UI' }) // Fades UI securely natively
+    set({ isTransitioning: true, view: 'FADING_UI' })
     await new Promise(r => setTimeout(r, 600))
-
-    set({ view: 'GRID', activePageId: null }) // Glides Camera backwards organically entirely gutted 
-    await new Promise(r => setTimeout(r, 600)) // Shrink animation mapped natively cleanly securely
-
-    set({ isTransitioning: false }) // Cleanly wipe memory after tile successfully docks 
+    set({ view: 'GRID', activePageId: null })
+    await new Promise(r => setTimeout(r, 600))
+    set({ isTransitioning: false })
   },
-
-  closeHome: () => set({ isHomeOpen: false }),
 
   setParam: (key, value) => {
     set({ [key]: value })
@@ -245,21 +193,15 @@ export const usePortfolioStore = create((set, get) => ({
     const { theme, nodeColorMode } = get()
     set({ pages: generatePageColors(theme, nodeColorMode) })
   },
-  setHoverPoint: (point) => {
-    if (!get().isTransitioning) set({ hoverPoint: point })
-  },
-
   applyPreset: (presetId, isCustom = false) => set((state) => {
     const p = isCustom ? state.userPresets[presetId] : presets[presetId]
     if (!p) return {}
     return {
-      theme: p.theme,
-      ...p.layout,
+      theme: p.theme, ...p.layout,
       waveDirection: new THREE.Vector2(p.layout.waveDirection.x, p.layout.waveDirection.y),
       pages: generatePageColors(p.theme, p.layout.nodeColorMode)
     }
   }),
-
   saveUserPreset: (name) => {
     const state = get()
     const newPreset = {
@@ -277,12 +219,10 @@ export const usePortfolioStore = create((set, get) => ({
         wireframeOpacity: state.wireframeOpacity, nodeColorMode: state.nodeColorMode
       }
     }
-
     const updatedPresets = { ...state.userPresets, [name]: newPreset }
     set({ userPresets: updatedPresets })
     localStorage.setItem('userPresets', JSON.stringify(updatedPresets))
   },
-
   deleteUserPreset: (name) => {
     const { userPresets } = get()
     const updated = { ...userPresets }
@@ -290,7 +230,6 @@ export const usePortfolioStore = create((set, get) => ({
     set({ userPresets: updated })
     localStorage.setItem('userPresets', JSON.stringify(updated))
   },
-
   setDefaultPreset: () => {
     const state = get()
     const currentAsDefault = {
@@ -310,11 +249,9 @@ export const usePortfolioStore = create((set, get) => ({
     }
     localStorage.setItem('userDefaultPreset', JSON.stringify(currentAsDefault))
   },
-
   nextPage: () => {
     const state = get()
     if (state.isTransitioning) return
-
     if (!state.activePageId) {
       state.transitionToPage(state.pages[0].id)
       return
@@ -323,11 +260,9 @@ export const usePortfolioStore = create((set, get) => ({
     const nextIndex = (currentIndex + 1) % state.pages.length
     state.transitionToPage(state.pages[nextIndex].id)
   },
-
   prevPage: () => {
     const state = get()
     if (state.isTransitioning) return
-
     if (!state.activePageId) {
       state.transitionToPage(state.pages[state.pages.length - 1].id)
       return

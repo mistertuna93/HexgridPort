@@ -7,7 +7,6 @@ import { CameraController } from './components/canvas/CameraController'
 import { PageContainer } from './components/canvas/PageContainer'
 import { SettingsDashboard } from './components/ui/SettingsDashboard'
 import { ActivePageOverlay } from './components/ui/ActivePageOverlay'
-import { HomeOverlay } from './components/ui/HomeOverlay'
 import { usePortfolioStore } from './store/usePortfolioStore'
 import { ZoomControls } from './components/ui/ZoomControls'
 import { Minimap } from './components/ui/Minimap'
@@ -63,7 +62,6 @@ function App() {
       </div>
 
       {/* 2D Overlay UI layers */}
-      <HomeOverlay />
       <ActivePageOverlay />
       <SettingsDashboard />
       <ZoomControls />
