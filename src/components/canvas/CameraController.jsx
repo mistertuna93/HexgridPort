@@ -27,50 +27,50 @@ export const CameraController = () => {
       maxZ: (maxV.y + 1) * 1.5 * r
     }
   }, [pages, hexWidth, r])
-  
+
   const padding = 15 // Margin around the bounding box
 
   useFrame((state, delta) => {
     if (!controls) return
-    
+
     // Joystick Camera Drive - dynamically continuous sliding logic mapped strictly to cursor hover presence natively
     if (view === 'GRID') {
       const isCursorInside = usePortfolioStore.getState().isCursorInside
-      
+
       if (isCursorInside) {
         // Core Viewport Edge panning strictly smoothly triggering RTS tracker identically
         const edgeThreshold = 0.92 // Outermost 4% cleanly cleanly
-        
+
         let panX = 0
         let panZ = 0
-        
+
         if (state.pointer.x > edgeThreshold) panX = 1
         if (state.pointer.x < -edgeThreshold) panX = -1
-        
+
         // Y mapping: Top of screen natively pushes tracking backwards (-Z into distance) identically natively
         if (state.pointer.y > edgeThreshold) panZ = -1
         if (state.pointer.y < -edgeThreshold) panZ = 1
-        
+
         if (panX !== 0 || panZ !== 0) {
-           const panSpeed = 25.0 * delta
-           const len = Math.sqrt(panX*panX + panZ*panZ)
-           
-           camera.position.x += (panX / len) * panSpeed
-           camera.position.z += (panZ / len) * panSpeed
-           controls.target.x += (panX / len) * panSpeed
-           controls.target.z += (panZ / len) * panSpeed
-           controls.update()
+          const panSpeed = 25.0 * delta
+          const len = Math.sqrt(panX * panX + panZ * panZ)
+
+          camera.position.x += (panX / len) * panSpeed
+          camera.position.z += (panZ / len) * panSpeed
+          controls.target.x += (panX / len) * panSpeed
+          controls.target.z += (panZ / len) * panSpeed
+          controls.update()
         }
       }
     }
-    
+
     // Clamp panning targets so camera never wanders out of bounds organically mathematically
     controls.target.x = Math.max(bounds.minX - padding, Math.min(bounds.maxX + padding, controls.target.x))
     controls.target.z = Math.max(bounds.minZ - padding, Math.min(bounds.maxZ + padding, controls.target.z))
-    
+
     // Sustain absolute spatial awareness in the store for flight duration calculations
     usePortfolioStore.setState({ lastCameraPos: camera.position.clone() })
-    
+
     controls.update()
   })
 
@@ -82,7 +82,7 @@ export const CameraController = () => {
       const currentPages = usePortfolioStore.getState().pages
       const page = currentPages.find((p) => p.id === activePageId)
       if (!page) return
-      
+
       const r = usePortfolioStore.getState().hexSize || 1.0
       const hexWidth = Math.sqrt(3) * r
       const modRow = ((page.vCoord.y % 2) + 2) % 2
@@ -121,12 +121,12 @@ export const CameraController = () => {
         ease: 'power2.inOut',
         onUpdate: () => controls?.update(),
         onComplete: () => {
-           // Allow camera cleanly executing seamlessly firing isolated route completely gracefully native
-           controls.enabled = true
-           if (usePortfolioStore.getState().view === 'FOCUSING') {
-              // Once flight is complete, trigger the structural growth phase natively
-              usePortfolioStore.setState({ view: 'GROWING' })
-           }
+          // Allow camera cleanly executing seamlessly firing isolated route completely gracefully native
+          controls.enabled = true
+          if (usePortfolioStore.getState().view === 'FOCUSING') {
+            // Once flight is complete, trigger the structural growth phase natively
+            usePortfolioStore.setState({ view: 'GROWING' })
+          }
         }
       })
     } else if (view === 'GRID' && !activePageId) {
@@ -135,6 +135,51 @@ export const CameraController = () => {
       usePortfolioStore.setState({ isTransitioning: false })
     }
   }, [view, activePageId, camera, controls, hexWidth])
+
+  const targetZoom = usePortfolioStore((state) => state.targetZoom)
+
+  useEffect(() => {
+    if (targetZoom !== null && controls) {
+      // Prevent other transitions from clashing
+      usePortfolioStore.setState({ isTransitioning: true })
+
+      gsap.to(camera.position, {
+        y: targetZoom,
+        duration: 1.0,
+        ease: 'power2.inOut',
+        onUpdate: () => controls.update(),
+        onComplete: () => {
+          usePortfolioStore.setState({ targetZoom: null, isTransitioning: false })
+        }
+      })
+    }
+  }, [targetZoom, camera, controls])
+
+  const targetPan = usePortfolioStore((state) => state.targetPan)
+
+  useEffect(() => {
+    if (targetPan && controls) {
+      usePortfolioStore.setState({ isTransitioning: true })
+
+      gsap.to(controls.target, {
+        x: targetPan.x,
+        z: targetPan.z,
+        duration: 0.8,
+        ease: 'power2.out'
+      })
+
+      gsap.to(camera.position, {
+        x: targetPan.x,
+        z: targetPan.z,
+        duration: 0.8,
+        ease: 'power2.out',
+        onUpdate: () => controls.update(),
+        onComplete: () => {
+          usePortfolioStore.setState({ targetPan: null, isTransitioning: false })
+        }
+      })
+    }
+  }, [targetPan, camera, controls])
 
   return null
 }
