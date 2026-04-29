@@ -29,7 +29,7 @@ const VerticalLabel = ({ children }) => (
     </div>
 )
 
-export const HomePage = () => {
+export const Construct = () => {
     useEffect(() => { injectFonts() }, [])
 
     const triggerZoom = usePortfolioStore(state => state.triggerZoom)
