@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { usePortfolioStore } from '../../store/usePortfolioStore'
-import constructionImg from '../../assets/constuna.jpg'
+import constructionImg from '../../assets/constuna.png'
 
 const injectFonts = () => {
     if (document.getElementById('mt-fonts')) return
