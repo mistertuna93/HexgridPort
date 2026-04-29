@@ -3,6 +3,7 @@ import { usePortfolioStore } from '../../store/usePortfolioStore'
 import { BioCard } from '../content/BioCard'
 import { ProjectsVault } from '../content/ProjectsVault'
 import { HomePage } from '../content/HomePage'
+import { ArsenalStack } from '../content/ArsenalStack'
 import { ContactTerminal } from '../content/ContactTerminal'
 
 
@@ -28,6 +29,7 @@ export const ActivePageOverlay = () => {
       case 'home': return <HomePage />
       case 'bio': return <BioCard />
       case 'projects': return <ProjectsVault />
+      case 'arsenal': return <ArsenalStack />
       case 'contact': return <ContactTerminal />
       default: return null
     }
