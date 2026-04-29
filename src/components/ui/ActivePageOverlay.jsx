@@ -3,7 +3,7 @@
 import React from 'react'
 import { usePortfolioStore } from '../../store/usePortfolioStore'
 // Import your new component
-import { Construct } from '../content/Construct'
+import { Construct } from '../content/Construct.jsx'
 
 export const ActivePageOverlay = () => {
   // We keep these to maintain the structure, but we will override the logic
